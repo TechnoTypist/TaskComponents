@@ -1,0 +1,30 @@
+TASKCOMPONENTS v1.1.0 — RUSH 2 PROJECT
+
+WINDOWS BUILD:
+1. Install a JDK 17 or newer (not just a JRE).
+   Check in PowerShell:
+     java -version
+     javac -version
+
+2. Install Rush CLI if needed. In PowerShell run:
+   iwr https://raw.githubusercontent.com/shreyashsaitwal/rush-cli/main/scripts/install/install.ps1 -useb | iex
+
+3. Extract this ZIP.
+
+4. Open the extracted TaskComponents-Rush folder. It must be the folder containing rush.yml.
+   Click the File Explorer address bar, type powershell, and press Enter.
+
+5. Run:
+     rush build
+
+6. When the build succeeds, open the out folder.
+   Import the generated .aix into MIT App Inventor:
+     Palette > Extensions > Import extension
+
+IMPORTANT:
+- Do not run rush build from the ZIP itself or from its parent folder.
+- Keep a copy of your old AIX and your App Inventor project before replacing the extension.
+- The updated extension keeps the original ComponentClicked(id, type) event and adds new events.
+- If Rush reports an error, copy the entire error output.
+
+This source package has been updated, but the AIX must be compiled on your PC with Rush. It has not been device-tested here.
