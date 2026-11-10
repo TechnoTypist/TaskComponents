@@ -34,7 +34,7 @@ public class TaskComponents extends AndroidNonvisibleComponent {
   private final Map<String, View> views = new HashMap<String, View>();
   private final Map<String, ViewGroup> groups = new HashMap<String, ViewGroup>();
   private final Map<ScrollView, LinearLayout> scrollHosts = new java.util.WeakHashMap<ScrollView, LinearLayout>();
-  private final Map<ViewGroup, LinearLayout> verticalHosts = new java.util.WeakHashMap<ViewGroup, LinearLayout>();
+  private static final String ARRANGEMENT_HOST_TAG = "TaskComponents.DynamicRowsHost.v1";
 
   public TaskComponents(ComponentContainer container) {
     super(container.$form());
@@ -54,13 +54,24 @@ public class TaskComponents extends AndroidNonvisibleComponent {
     return groups.get(id);
   }
 
-  // ScrollView accepts one direct child. Vertical App Inventor arrangements
-  // can also contain extension-created rows in a nested host. Keep one host
-  // per parent so every task row is appended to the same vertical column.
+  // ScrollView accepts exactly one direct child. This method creates/reuses
+  // one vertical content host and places extension-created layouts inside it.
   private ViewGroup resolveParent(AndroidViewComponent component) {
     if (component == null) return null;
     View target = component.getView();
-
+    // ROOT CAUSE FIX (v1.1.4): App Inventor arrangements do not return their
+    // LinearLayout from getView(); they return a FrameLayout wrapper
+    // (scroll arrangements: FrameLayout -> ScrollView -> LinearLayout).
+    // Rows added to that FrameLayout all draw at the top-left and overlap.
+    // Walk down single-child wrappers to reach the real LinearLayout.
+    while (!(target instanceof LinearLayout) && !(target instanceof ScrollView)
+        && target instanceof ViewGroup && ((ViewGroup) target).getChildCount() == 1) {
+      target = ((ViewGroup) target).getChildAt(0);
+    }
+    if (target instanceof ScrollView && ((ScrollView) target).getChildCount() == 1
+        && ((ScrollView) target).getChildAt(0) instanceof LinearLayout) {
+      target = ((ScrollView) target).getChildAt(0);
+    }
     if (target instanceof ScrollView) {
       ScrollView scroll = (ScrollView) target;
       LinearLayout host = scrollHosts.get(scroll);
@@ -76,39 +87,43 @@ public class TaskComponents extends AndroidNonvisibleComponent {
       }
       host = new LinearLayout(context);
       host.setOrientation(LinearLayout.VERTICAL);
-      host.setGravity(Gravity.TOP);
-      host.setClipChildren(false);
-      host.setClipToPadding(false);
       host.setLayoutParams(new ScrollView.LayoutParams(
           ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
       scroll.addView(host);
       scrollHosts.put(scroll, host);
       return host;
     }
+    if (!(target instanceof ViewGroup)) return null;
 
+    // Keep all extension-created root rows inside one dedicated vertical child.
+    // App Inventor's VerticalArrangement then measures the dynamic task list as
+    // one content block, and every task row is stacked by this native LinearLayout.
     if (target instanceof LinearLayout) {
-      LinearLayout parent = (LinearLayout) target;
-      if (parent.getOrientation() == LinearLayout.VERTICAL) {
-        LinearLayout host = verticalHosts.get(parent);
-        if (host != null && host.getParent() == parent) return host;
-
-        host = new LinearLayout(context);
+      LinearLayout arrangement = (LinearLayout) target;
+      if (arrangement.getOrientation() == LinearLayout.VERTICAL) {
+        for (int i = 0; i < arrangement.getChildCount(); i++) {
+          View child = arrangement.getChildAt(i);
+          if (child instanceof LinearLayout && ARRANGEMENT_HOST_TAG.equals(child.getTag())) {
+            return (LinearLayout) child;
+          }
+        }
+        LinearLayout host = new LinearLayout(context);
         host.setOrientation(LinearLayout.VERTICAL);
-        host.setGravity(Gravity.TOP);
-        host.setBaselineAligned(false);
+        host.setGravity(Gravity.TOP | Gravity.START);
         host.setClipChildren(false);
         host.setClipToPadding(false);
+        host.setTag(ARRANGEMENT_HOST_TAG);
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT, 0f);
-        parent.addView(host, parent.getChildCount(), params);
-        verticalHosts.put(parent, host);
-        parent.requestLayout();
-        parent.invalidate();
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        params.weight = 0f;
+        arrangement.addView(host, params);
+        arrangement.requestLayout();
+        arrangement.invalidate();
         return host;
       }
     }
-
-    return target instanceof ViewGroup ? (ViewGroup) target : null;
+    // Only LinearLayouts stack children. Never add rows to a FrameLayout.
+    return target instanceof LinearLayout ? (ViewGroup) target : null;
   }
 
   private void register(String id, View view) {
@@ -117,23 +132,30 @@ public class TaskComponents extends AndroidNonvisibleComponent {
   }
 
   private void addToParent(ViewGroup parent, View child, int width, int height) {
-    if (parent == null || child == null) return;
+    if (parent == null || child == null || child.getParent() != null) return;
     int resolvedWidth = width == -1 ? ViewGroup.LayoutParams.MATCH_PARENT
         : (width == -2 ? ViewGroup.LayoutParams.WRAP_CONTENT : dp(width));
     int resolvedHeight = height == -1 ? ViewGroup.LayoutParams.MATCH_PARENT
         : (height == -2 ? ViewGroup.LayoutParams.WRAP_CONTENT : dp(height));
-
     if (parent instanceof LinearLayout) {
-      LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
-          resolvedWidth, resolvedHeight, 0f);
-      params.gravity = Gravity.TOP;
+      LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(resolvedWidth, resolvedHeight);
+      params.weight = 0f;
+      if (((LinearLayout) parent).getOrientation() == LinearLayout.VERTICAL) {
+        params.gravity = Gravity.TOP | Gravity.START;
+      }
+      // Explicitly append every child after existing siblings.
       parent.addView(child, parent.getChildCount(), params);
     } else {
       parent.addView(child, new ViewGroup.LayoutParams(resolvedWidth, resolvedHeight));
     }
+    child.setVisibility(View.VISIBLE);
+    child.requestLayout();
     parent.requestLayout();
     parent.invalidate();
-    child.requestLayout();
+    if (parent.getParent() instanceof View) {
+      ((View) parent.getParent()).requestLayout();
+      ((View) parent.getParent()).invalidate();
+    }
   }
 
   private GradientDrawable shape(int color, int radiusDp) {
@@ -150,7 +172,9 @@ public class TaskComponents extends AndroidNonvisibleComponent {
     if (target == null) return;
     LinearLayout layout = new LinearLayout(context);
     layout.setOrientation("horizontal".equalsIgnoreCase(orientation) ? LinearLayout.HORIZONTAL : LinearLayout.VERTICAL);
-    layout.setGravity("horizontal".equalsIgnoreCase(orientation) ? Gravity.CENTER_VERTICAL : Gravity.TOP);
+    layout.setGravity(("horizontal".equalsIgnoreCase(orientation) ? Gravity.CENTER_VERTICAL : Gravity.TOP | Gravity.START));
+    layout.setClipChildren(false);
+    layout.setClipToPadding(false);
     layout.setPadding(dp(padding), dp(padding), dp(padding), dp(padding));
     layout.setBackground(shape(backgroundColor, cornerRadius));
     register(id, layout);
@@ -163,7 +187,9 @@ public class TaskComponents extends AndroidNonvisibleComponent {
     if (parent == null || !validId(id) || views.containsKey(id)) return;
     LinearLayout layout = new LinearLayout(context);
     layout.setOrientation("horizontal".equalsIgnoreCase(orientation) ? LinearLayout.HORIZONTAL : LinearLayout.VERTICAL);
-    layout.setGravity("horizontal".equalsIgnoreCase(orientation) ? Gravity.CENTER_VERTICAL : Gravity.TOP);
+    layout.setGravity(("horizontal".equalsIgnoreCase(orientation) ? Gravity.CENTER_VERTICAL : Gravity.TOP | Gravity.START));
+    layout.setClipChildren(false);
+    layout.setClipToPadding(false);
     layout.setPadding(dp(padding), dp(padding), dp(padding), dp(padding));
     layout.setBackground(shape(backgroundColor, cornerRadius));
     register(id, layout);
