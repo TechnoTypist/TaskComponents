@@ -6,7 +6,7 @@ Last updated: 2026-11-10
 - MIT App Inventor project: Task Focus Assistant / APCSP_CPT_PRACTICE.
 - Main repository: https://github.com/TechnoTypist/TaskManagerApp (branch: main).
 - User wants exact, step-by-step block instructions with actual block names and sockets. Be direct, concise, and do not end with questions.
-- Do not edit or push GitHub files unless the user explicitly asks. In this session the user explicitly asked to upload the Rush extension source and maintain this handoff note.
+- Do not edit or push GitHub files unless the user explicitly asks. User previously requested GitHub uploads and a persistent handoff note; continue updating this note at the end of future sessions.
 - Do not claim a fix is tested unless it has been built and tested on-device.
 - At the end of each future session, update this file with current findings, completed changes, and next steps so a future assistant can resume after chat compression.
 
@@ -18,36 +18,23 @@ Last updated: 2026-11-10
 - taskTimes stores original duration in minutes.
 - TinyDB stores per-task remaining seconds in tags secondsLeft_INDEX and timer state in timerRunning_INDEX.
 - updateTimerLabel formats the currently running task's secondsLeft.
-- User reports Start/Stop labels now display correctly, but task-row display formatting and completed display still need correction.
+- User reports Start/Stop timer display now uses remaining time correctly.
+- Current completed-time formatting bug: display is 0:0 instead of 0:00. In createTaskRow's Completed branch, the THEN socket for seconds currently uses a blue numeric 00 block; replace it with a pink text literal "00" (or join "0" with "0") so leading zero is preserved.
 
 ## Current bugs being worked on
-1. Task display overlap: adding task 2 causes it to appear on top of task 1 rather than as a separate row below it. Deleting task 2 makes task 1 appear again. Restarting the app does not fix it. Previous theories about multiple Screen1 instances were rejected by the user; do not repeat that explanation.
-2. Task time display: taskTime in createTaskRow is currently treated as seconds by floor(taskTime / 60) and modulo 60. But taskTimes stores minutes, so passing taskTimes directly produces values such as 0:1 for a 1-minute task. Correct row display must use the per-task saved remaining-seconds TinyDB tag, with fallback original minutes * 60. Completed rows must show 0:00. Seconds must be zero-padded (e.g. 2:03).
+1. Task display overlap: adding task 2 causes it to appear on top of task 1 rather than as a separate row below it. Deleting task 2 makes task 1 appear again. Restarting the app does not fix it. User says the previous v1.1.2 extension upgrade made no difference. Do not repeat the earlier theory about multiple Screen1 instances or ask for unrelated screen-navigation changes.
+2. Timer row values: taskTime must be remaining seconds, not original minutes. refreshTaskRows should pass TinyDB1.GetValue with tag join "secondsLeft_" + loop index; ValueIfTagNotThere = selected taskTimes[loop index] * 60. In createTaskRow, minutesPart = floor(taskTime / 60), secondsPart = taskTime modulo 60. Paused task at 2:33 must continue showing 2:33; seconds must be zero-padded.
 
-## Exact intended timer row logic
-- In refreshTaskRows, for each loop index number, pass TinyDB1.GetValue to createTaskRow's taskTime input:
-  - tag = join "secondsLeft_" + get global number
-  - ValueIfTagNotThere = (select list item from global taskTimes at index get global number) * 60
-- The index is get global number. The list is global taskTimes. Multiply the selected duration by 60 only for the fallback value, not for the index.
-- In createTaskRow:
-  - minutesPart = floor(taskTime / 60)
-  - secondsPart = taskTime modulo 60
-  - display minutesPart unless taskStatus = "Completed", then 0
-  - display secondsPart with zero padding: if secondsPart < 10 then join "0" + secondsPart, else secondsPart; if Completed then "00".
-  - Do not replace this with original taskTimes minutes; paused task at 2:33 must continue showing 2:33.
-- Before changing blocks, inspect the current project source to verify current state; latest .aia upload may be newer than GitHub.
-
-## Rush extension
-- User uploaded TaskComponents-Rush-v1.1.1(1).zip in this conversation.
-- Source includes TaskComponents.java at TaskComponents-Rush/src/com/technomc/taskcomponents/TaskComponents.java, rush.yml, README.md, and Windows build instructions.
-- A proposed v1.1.2 patch changes addToParent() to use LinearLayout.LayoutParams whenever the parent is a LinearLayout, then requestLayout()/invalidate() on child and parent. This is intended to make task rows participate reliably in vertical/horizontal LinearLayout measurement and stacking. It is not yet built or device-tested.
-- A rebuilt AIX has NOT been produced. User must run rush build from extracted TaskComponents-Rush folder using JDK 17+ and Rush CLI 2.1.2+, then import generated .aix into App Inventor.
-- Do not claim extension patch definitely fixes overlap until user tests it.
-- Preserve existing public methods/events and ID behavior for compatibility.
+## Rush extension history and latest patch
+- User uploaded source archive TaskComponents-Rush-v1.1.1(1).zip. Source includes TaskComponents.java, rush.yml, README.md, and Windows build instructions.
+- v1.1.2 changed only addToParent() to use LinearLayout.LayoutParams and requestLayout/invalidate. User tested it and reports it made no difference. Do not recommend v1.1.2 again.
+- Created proposed TaskComponents-Rush-v1.1.3 source ZIP at /mnt/data/TaskComponents-Rush-v1.1.3.zip. It adds a dedicated tagged vertical host inside a VerticalArrangement. CreateLayout reuses that host so all task rows live in one vertical LinearLayout, appends each root row explicitly at childCount with zero weight and top gravity, and requests layout on parent containers. Public functions/events are unchanged. This is a materially different structural change from v1.1.2.
+- v1.1.3 is source-only, not compiled to AIX and not device-tested. Rush CLI is not installed in the assistant runtime; JDK 21 is available. User must compile with Rush CLI 2.1.2+ and JDK 17+ from the extracted project folder using rush build, then import the generated AIX. Do not claim it is proven until tested.
+- If v1.1.3 still fails, inspect current AIA and add diagnostic APIs (e.g. child counts/parent identity) or trace exact parent view, row IDs, and child layout params before making another guess.
 
 ## Next steps
-1. Help user wire row display input in refreshTaskRows exactly as specified above.
-2. Confirm seconds zero-padding in createTaskRow.
-3. Provide updated Rush source project ZIP and build instructions; do not make user modify unrelated screen navigation.
-4. Have user replace/import newly built AIX, then test two tasks, deleting task 2, and paused timer at 2:33.
+1. User should replace the blue numeric 00 in createTaskRow's Completed seconds branch with a pink text literal "00"; verify completed display is 0:00.
+2. Give user the v1.1.3 ZIP and exact Windows build/import instructions. Keep the existing AIX backed up.
+3. Test creating two tasks and confirm task 2 is below task 1, then delete task 2 and confirm task 1 remains.
+4. If overlap remains, ask for the complete Rush build output and a screenshot of the Designer component hierarchy; inspect exact current AIA before further changes.
 5. Update this handoff file at the end of the next session.
