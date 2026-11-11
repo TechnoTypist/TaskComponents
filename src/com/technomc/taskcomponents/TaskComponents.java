@@ -196,7 +196,7 @@ public class TaskComponents extends AndroidNonvisibleComponent {
     addToParent(parent, layout, width, height);
   }
 
-  @SimpleFunction(description = "Add a text label to a layout ID. textSize is in scaled pixels; width/height use pixels, -1 Fill Parent, -2 Automatic.")
+  @SimpleFunction(description = "Add a text label to a layout ID. textSize is in sp; width/height are in dp, -1 Fill Parent, -2 Automatic.")
   public void AddText(String parentId, String id, String text, int textColor, float textSize, int width, int height, boolean bold) {
     ViewGroup parent = getGroup(parentId);
     if (parent == null || !validId(id) || views.containsKey(id)) return;
@@ -260,7 +260,7 @@ public class TaskComponents extends AndroidNonvisibleComponent {
     if (view != null) view.setBackground(shape(color, cornerRadius));
   }
 
-  @SimpleFunction(description = "Set a component's width and height in pixels. Use -1 for Fill Parent and -2 for Automatic.")
+  @SimpleFunction(description = "Set a component's width and height in dp. Use -1 for Fill Parent and -2 for Automatic.")
   public void SetSize(String id, int width, int height) {
     View view = views.get(id);
     if (view == null) return;
@@ -336,10 +336,15 @@ public class TaskComponents extends AndroidNonvisibleComponent {
   public void SetSpacing(String id, int spacing) {
     ViewGroup group = getGroup(id);
     if (!(group instanceof LinearLayout)) return;
-    ((LinearLayout) group).setShowDividers(LinearLayout.SHOW_DIVIDER_MIDDLE);
-    android.graphics.drawable.ColorDrawable divider = new android.graphics.drawable.ColorDrawable(Color.TRANSPARENT);
+    // A transparent divider whose size is the gap. (A plain ColorDrawable has
+    // no intrinsic size, so it would add no space at all.)
+    int gap = dp(Math.max(0, spacing));
+    GradientDrawable divider = new GradientDrawable();
+    divider.setColor(Color.TRANSPARENT);
+    divider.setSize(gap, gap);
     ((LinearLayout) group).setDividerDrawable(divider);
-    ((LinearLayout) group).setDividerPadding(dp(Math.max(0, spacing)));
+    ((LinearLayout) group).setShowDividers(gap > 0
+        ? LinearLayout.SHOW_DIVIDER_MIDDLE : LinearLayout.SHOW_DIVIDER_NONE);
   }
 
   @SimpleFunction(description = "Fade a component in or out over durationMs milliseconds.")

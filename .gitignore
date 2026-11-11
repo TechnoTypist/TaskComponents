@@ -1,0 +1,5 @@
+out/
+.rush/
+.build/
+.dart_tool/
+.idea/
