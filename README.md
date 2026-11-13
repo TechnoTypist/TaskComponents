@@ -35,6 +35,18 @@ It was built for a task list app where every task is a row (title, description, 
 
 Each call to `CreateLayout` with the same parent adds a new row **below** the previous one.
 
+## Example project
+
+[`example/TaskComponentsDemo.aia`](example/TaskComponentsDemo.aia) is a small to-do app built with TaskComponents. Type a task and tap **Add** to get a row with **Done** and **Delete** buttons; **Clear all** removes every row. Import it with **Projects → Import project (.aia) from my computer**. The extension is already included.
+
+**Adding a task row**
+
+![AddButton.Click blocks](docs/images/example-add-task.webp)
+
+**Handling the row buttons**
+
+![ComponentClickedWithText blocks](docs/images/example-button-clicks.png)
+
 ## Units
 
 | Value | Meaning |
@@ -46,7 +58,12 @@ Each call to `CreateLayout` with the same parent adds a new row **below** the pr
 
 ## Blocks
 
+![All TaskComponents blocks](docs/images/blocks-overview.png)
+
 ### Creating
+
+![Creating blocks](docs/images/blocks-create.png)
+
 | Block | What it does |
 |---|---|
 | `CreateLayout(parent, id, orientation, width, height, backgroundColor, cornerRadius, padding)` | Adds a layout inside an App Inventor arrangement. |
@@ -55,6 +72,8 @@ Each call to `CreateLayout` with the same parent adds a new row **below** the pr
 | `AddButton(parentId, id, text, textColor, backgroundColor, textSize, width, height, cornerRadius)` | Adds a button. |
 
 ### Changing
+
+![Changing blocks, part 1](docs/images/blocks-change-1.png) ![Changing blocks, part 2](docs/images/blocks-change-2.png)
 | Block | What it does |
 |---|---|
 | `SetText(id, text)` / `GetText(id)` | Set or read a label or button's text. |
@@ -69,7 +88,9 @@ Each call to `CreateLayout` with the same parent adds a new row **below** the pr
 | `SetAlpha(id, alpha)` | Transparency, 0 to 1. |
 | `Fade(id, show, durationMs)` / `Slide(id, show, durationMs)` | Animations. |
 
-### Removing and checking
+### Removing, checking and events
+
+![Remove, ClearAll, GetText, Exists, GetChildCount and events](docs/images/blocks-remove-get-events.png)
 | Block | What it does |
 |---|---|
 | `Remove(id)` | Removes a component and everything inside it. |
@@ -105,6 +126,14 @@ The `.aix` is written to `out/`.
 ## How rows stay stacked
 
 App Inventor arrangements don't hand an extension their real `LinearLayout`; `getView()` returns a `FrameLayout` wrapper around it. Views added to that wrapper all draw in the top-left corner, on top of each other. TaskComponents looks through the wrapper to the arrangement's inner vertical `LinearLayout`, so every row you create is placed below the last one.
+
+## Credits
+
+Built with [Rush](https://github.com/shreyashsaitwal/rush-cli) 2.x (2.1.2) by Shreyash Saitwal, the extension builder for MIT App Inventor.
+
+## Changelog
+
+- **1.0.0** (2026-11-11): first public release.
 
 ## License
 
